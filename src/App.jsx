@@ -57,9 +57,9 @@ function App() {
       })
       s.on('connect_error', () => {
         s.disconnect()
-        if (isRender && retryCount < 3) {
-          setError(`מעיר את השרת... נסיון ${retryCount + 1}/3`)
-          retryTimeoutId = setTimeout(() => tryConnect(retryCount + 1), 3500)
+        if (isRender && retryCount < 5) {
+          setError(`מעיר את השרת... נסיון ${retryCount + 1}/5 (חכה עד 30 שניות)`)
+          retryTimeoutId = setTimeout(() => tryConnect(retryCount + 1), 6000)
         } else {
           setError('לא ניתן להתחבר. הער את השרת: פתח בחלון חדש ' + (SOCKET_URL || '') + '/api/health חכה ל־{"status":"ok"} ולחץ שוב התחבר והמשך.')
         }
