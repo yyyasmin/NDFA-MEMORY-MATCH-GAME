@@ -34,62 +34,87 @@ function App() {
   const connectSocket = useCallback((loginEmail, loginNickname) => {
     const em = (loginEmail != null ? loginEmail : email).toString().trim()
     const nick = (loginNickname != null ? loginNickname : nickname).toString().trim()
-    // Use polling only for Render (avoids WebSocket "closed before established" on free tier).
     const isRender = SOCKET_URL && SOCKET_URL.includes('onrender.com')
-    const s = io(SOCKET_URL || window.location.origin, {
-      path: '/socket.io',
-      transports: isRender ? ['polling'] : ['polling', 'websocket']
-    })
-    s.on('connect', () => {
-      setError('')
-      s.emit('register', { email: em, nickname: nick })
-    })
-    s.on('connect_error', () => {
-      setError('לא ניתן להתחבר לשרת. אם השרת ב-Render (חינם), ייתכן שהוא ישן – נסה שוב אחרי כמה שניות.')
-    })
-    s.on('disconnect', (reason) => {
-      if (reason === 'io server disconnect' || reason === 'io client disconnect') return
-      setError('התנתקת מהשרת. נסה להתחבר שוב.')
-    })
-    s.on('registered', () => setScreen('lobby'))
-    s.on('error', (data) => setError(data?.message || 'שגיאה'))
-    s.on('roomCreated', (data) => {
-      setRoomId(data.roomId)
-      setRoom(data.room)
-      setScreen('room')
-      setError('')
-    })
-    s.on('joinedRoom', (data) => {
-      setRoomId(data.roomId)
-      setRoom(data.room)
-      setScreen('room')
-      setError('')
-    })
-    s.on('roomUpdate', (data) => setRoom(data))
-    s.on('roomsList', (data) => setRoomsList(data || []))
-    s.on('gameStarted', (data) => {
-      setRoom(data.room)
-      setDeck(data.deck || [])
-      setFlipped([])
-      setMatched([])
-      setScreen('game')
-      setError('')
-    })
-    s.on('cardFlipped', (data) => setFlipped(data.flipped || []))
-    s.on('match', (data) => {
-      setMatched((m) => [...m, ...(data.cardIndices || [])])
-      setFlipped([])
-      if (data.room) setRoom(data.room)
-      const act = getRandomActivity(data.category)
-      setActivityModal({ ...act, category: data.category })
-    })
-    s.on('noMatch', (data) => {
-      setFlipped([])
-      if (data.room) setRoom(data.room)
-    })
-    s.on('activityClosed', () => setActivityModal(null))
-    setSocket(s)
-    return () => s.disconnect()
+    let currentSocket = null
+    let retryTimeoutId = null
+
+    function tryConnect(retryCount) {
+      if (currentSocket) {
+        currentSocket.removeAllListeners()
+        currentSocket.disconnect()
+        currentSocket = null
+      }
+      const s = io(SOCKET_URL || window.location.origin, {
+        path: '/socket.io',
+        transports: isRender ? ['polling'] : ['polling', 'websocket']
+      })
+      currentSocket = s
+
+      s.on('connect', () => {
+        setError('')
+        setSocket(s)
+        s.emit('register', { email: em, nickname: nick })
+      })
+      s.on('connect_error', () => {
+        s.disconnect()
+        if (isRender && retryCount < 3) {
+          setError(`מעיר את השרת... נסיון ${retryCount + 1}/3`)
+          retryTimeoutId = setTimeout(() => tryConnect(retryCount + 1), 3500)
+        } else {
+          setError('לא ניתן להתחבר לשרת. אם השרת ב-Render (חינם), ייתכן שהוא ישן – נסה שוב אחרי כמה שניות.')
+        }
+      })
+      s.on('disconnect', (reason) => {
+        if (reason === 'io server disconnect' || reason === 'io client disconnect') return
+        setError('התנתקת מהשרת. נסה להתחבר שוב.')
+      })
+      s.on('registered', () => setScreen('lobby'))
+      s.on('error', (data) => setError(data?.message || 'שגיאה'))
+      s.on('roomCreated', (data) => {
+        setRoomId(data.roomId)
+        setRoom(data.room)
+        setScreen('room')
+        setError('')
+      })
+      s.on('joinedRoom', (data) => {
+        setRoomId(data.roomId)
+        setRoom(data.room)
+        setScreen('room')
+        setError('')
+      })
+      s.on('roomUpdate', (data) => setRoom(data))
+      s.on('roomsList', (data) => setRoomsList(data || []))
+      s.on('gameStarted', (data) => {
+        setRoom(data.room)
+        setDeck(data.deck || [])
+        setFlipped([])
+        setMatched([])
+        setScreen('game')
+        setError('')
+      })
+      s.on('cardFlipped', (data) => setFlipped(data.flipped || []))
+      s.on('match', (data) => {
+        setMatched((m) => [...m, ...(data.cardIndices || [])])
+        setFlipped([])
+        if (data.room) setRoom(data.room)
+        const act = getRandomActivity(data.category)
+        setActivityModal({ ...act, category: data.category })
+      })
+      s.on('noMatch', (data) => {
+        setFlipped([])
+        if (data.room) setRoom(data.room)
+      })
+      s.on('activityClosed', () => setActivityModal(null))
+    }
+
+    tryConnect(0)
+    return () => {
+      if (retryTimeoutId) clearTimeout(retryTimeoutId)
+      if (currentSocket) {
+        currentSocket.removeAllListeners()
+        currentSocket.disconnect()
+      }
+    }
   }, [email, nickname])
 
   useEffect(() => {
