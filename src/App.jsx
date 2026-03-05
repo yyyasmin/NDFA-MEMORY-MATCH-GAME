@@ -61,7 +61,7 @@ function App() {
           setError(`מעיר את השרת... נסיון ${retryCount + 1}/3`)
           retryTimeoutId = setTimeout(() => tryConnect(retryCount + 1), 3500)
         } else {
-          setError('לא ניתן להתחבר לשרת. אם השרת ב-Render (חינם), ייתכן שהוא ישן – נסה שוב אחרי כמה שניות.')
+          setError('לא ניתן להתחבר. הער את השרת: פתח בחלון חדש ' + (SOCKET_URL || '') + '/api/health חכה ל־{"status":"ok"} ולחץ שוב התחבר והמשך.')
         }
       })
       s.on('disconnect', (reason) => {
@@ -125,7 +125,7 @@ function App() {
     return () => clearInterval(id)
   }, [screen, socket])
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
     const em = email.trim()
@@ -136,6 +136,21 @@ function App() {
     }
     setEmail(em)
     setNickname(nick)
+
+    // If backend is Render (free tier), wake it first so the socket can connect.
+    if (SOCKET_URL && SOCKET_URL.includes('onrender.com')) {
+      setError('מעיר את השרת...')
+      try {
+        const ctrl = new AbortController()
+        const t = setTimeout(() => ctrl.abort(), 60000)
+        await fetch(`${SOCKET_URL}/api/health`, { signal: ctrl.signal })
+        clearTimeout(t)
+      } catch (_) {
+        // Timeout or network error – continue anyway, retries will run
+      }
+      setError('')
+    }
+
     connectSocket(em, nick)
   }
 
@@ -277,7 +292,7 @@ function App() {
       )}
 
       <p className="backend-indicator" title="Which backend this frontend connects to">
-        Backend: {BACKEND_DISPLAY}
+        Backend: <span style={{ userSelect: 'all', wordBreak: 'break-all' }}>{BACKEND_DISPLAY}</span>
       </p>
     </div>
   )
