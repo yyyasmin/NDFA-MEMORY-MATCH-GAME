@@ -47,14 +47,11 @@ Use: Build = pip install -r requirements.txt, Start = gunicorn ...
    Root Directory: backend
    Runtime: Python 3
 
-   Build Command:
-   pip install -r requirements.txt
-
-   Pre-Deploy Command (creates DB tables before each deploy):
-   python db_create.py --init
+   Build Command (install deps + create DB tables if missing):
+   pip install -r requirements.txt && python db_create.py --init
 
    Start Command:
-   gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app
+   gunicorn --worker-class gevent -w 1 -b 0.0.0.0:$PORT app:app
 
    Plan: Free
 
@@ -99,10 +96,7 @@ COMMANDS TO COPY (for step 4)
 -----------------------------
 
 Build Command:
-pip install -r requirements.txt
-
-Pre-Deploy Command:
-python db_create.py --init
+pip install -r requirements.txt && python db_create.py --init
 
 Start Command:
-gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app
+gunicorn --worker-class gevent -w 1 -b 0.0.0.0:$PORT app:app

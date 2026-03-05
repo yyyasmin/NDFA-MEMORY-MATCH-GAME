@@ -40,12 +40,10 @@ Your repo: `https://github.com/yyyasmin/NDFA-MEMORY-MATCH-GAME`
    - **Root Directory:** type **`backend`** (important).
    - **Runtime:** **Python 3**.
    - **Build Command:**  
-     `pip install -r requirements.txt`
-   - **Pre-Deploy Command:**  
-     `python db_create.py --init`  
-     (creates DB tables before each deploy; safe, no data loss)
+     `pip install -r requirements.txt && python db_create.py --init`  
+     (installs deps and creates DB tables if missing; safe, no data loss)
    - **Start Command:**  
-     `gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app`
+     `gunicorn --worker-class gevent -w 1 -b 0.0.0.0:$PORT app:app`
 4. **Environment variables:**
    - Click **Add Environment Variable**.
    - **Key:** `DATABASE_URL`  
@@ -115,6 +113,6 @@ When you deploy the frontend on Netlify:
 ## Troubleshooting
 
 - **Build fails:** Make sure **Root Directory** is `backend` and **Build Command** is `pip install -r requirements.txt`.
-- **Service crashes / “Application failed to respond”:** Check **Logs** in the Render service. Ensure **Start Command** is: `gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app`
+- **Service crashes / “Application failed to respond”:** Check **Logs** in the Render service. Ensure **Start Command** is: `gunicorn --worker-class gevent -w 1 -b 0.0.0.0:$PORT app:app`
 - **Database connection error:** Check that `DATABASE_URL` is the **Internal Database URL** from the PostgreSQL service (not External, unless you run `db_create.py` from your PC with External URL).
 - **Free tier:** The service may “spin down” after inactivity; the first request after that can take 30–60 seconds.
