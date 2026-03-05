@@ -5,7 +5,7 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt && python db_create.py --init
-    startCommand: gunicorn --worker-class gevent -w 1 -b 0.0.0.0:$PORT app:app
+    startCommand: gunicorn -w 1 --threads 100 -b 0.0.0.0:$PORT app:app
     envVars:
       - key: DATABASE_URL
         fromDatabase:

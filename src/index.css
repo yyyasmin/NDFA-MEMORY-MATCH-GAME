@@ -149,3 +149,11 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 @media (max-width: 520px) {
   .game-board { grid-template-columns: repeat(3, 1fr); }
 }
+
+.backend-indicator {
+  margin-top: 2rem;
+  font-size: 0.75rem;
+  color: #666;
+  text-align: center;
+}
+.backend-indicator:hover { color: #888; }

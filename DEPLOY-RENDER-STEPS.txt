@@ -8,7 +8,7 @@ Public Git repository (copy this value when Render asks):
 https://github.com/yyyasmin/NDFA-MEMORY-MATCH-GAME
 
 Note: Do NOT use a .venv in Build/Start - Render excludes .venv from deploy.
-Use: Build = pip install -r requirements.txt && python db_create.py --init, Start = gunicorn --worker-class gevent ...
+Use: Build = pip install -r requirements.txt && python db_create.py --init, Start = gunicorn -w 1 --threads 100 ...
 
 1. OPEN RENDER
    Go to: https://render.com
@@ -51,7 +51,7 @@ Use: Build = pip install -r requirements.txt && python db_create.py --init, Star
    pip install -r requirements.txt && python db_create.py --init
 
    Start Command:
-   gunicorn --worker-class gevent -w 1 -b 0.0.0.0:$PORT app:app
+   gunicorn -w 1 --threads 100 -b 0.0.0.0:$PORT app:app
 
    Plan: Free
 
@@ -99,4 +99,4 @@ Build Command:
 pip install -r requirements.txt && python db_create.py --init
 
 Start Command:
-gunicorn --worker-class gevent -w 1 -b 0.0.0.0:$PORT app:app
+gunicorn -w 1 --threads 100 -b 0.0.0.0:$PORT app:app

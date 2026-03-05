@@ -2,8 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { io } from 'socket.io-client'
 import { getRandomActivity, getCardEmoji } from './activities'
 
-const API_BASE = ''
-const SOCKET_URL = ''
+// Backend URL: env var, or when on Netlify use Render backend, else same origin.
+const RENDER_BACKEND = 'https://ndfa-memory-match-game.onrender.com'
+const API_BASE = import.meta.env.VITE_BACKEND_URL || (typeof window !== 'undefined' && window.location.hostname === 'ndfa-memory-match-game.netlify.app' ? RENDER_BACKEND : '') || ''
+const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || (typeof window !== 'undefined' && window.location.hostname === 'ndfa-memory-match-game.netlify.app' ? RENDER_BACKEND : '') || ''
+// Display: which backend the frontend is using (so you can tell local vs production).
+const BACKEND_DISPLAY = SOCKET_URL || (typeof window !== 'undefined' ? window.location.origin : '')
 
 function App() {
   const [screen, setScreen] = useState('login')
@@ -225,6 +229,10 @@ function App() {
           </div>
         </div>
       )}
+
+      <p className="backend-indicator" title="Which backend this frontend connects to">
+        Backend: {BACKEND_DISPLAY}
+      </p>
     </div>
   )
 }

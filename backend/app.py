@@ -36,6 +36,10 @@ def create_shuffled_deck(pair_count):
     random.shuffle(deck)
     return deck
 
+@app.route('/')
+def index():
+    return jsonify({'service': 'NDFA Memory Game API', 'health': '/api/health'})
+
 @app.route('/api/health')
 def health():
     return jsonify({'status': 'ok'})
