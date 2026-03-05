@@ -50,6 +50,9 @@ Use: Build = pip install -r requirements.txt, Start = gunicorn ...
    Build Command:
    pip install -r requirements.txt
 
+   Pre-Deploy Command (creates DB tables before each deploy):
+   python db_create.py --init
+
    Start Command:
    gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app
 
@@ -97,6 +100,9 @@ COMMANDS TO COPY (for step 4)
 
 Build Command:
 pip install -r requirements.txt
+
+Pre-Deploy Command:
+python db_create.py --init
 
 Start Command:
 gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app

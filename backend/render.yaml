@@ -5,6 +5,7 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
+    preDeployCommand: python db_create.py --init
     startCommand: gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app
     envVars:
       - key: DATABASE_URL

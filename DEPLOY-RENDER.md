@@ -41,6 +41,9 @@ Your repo: `https://github.com/yyyasmin/NDFA-MEMORY-MATCH-GAME`
    - **Runtime:** **Python 3**.
    - **Build Command:**  
      `pip install -r requirements.txt`
+   - **Pre-Deploy Command:**  
+     `python db_create.py --init`  
+     (creates DB tables before each deploy; safe, no data loss)
    - **Start Command:**  
      `gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app`
 4. **Environment variables:**
@@ -65,11 +68,11 @@ Render will clone the repo, run the build command in the `backend` folder, then 
 
 ---
 
-## 5. Create tables in the database (first time)
+## 5. Create tables in the database
 
-Render does not run `db_create.py` automatically. Two options:
+If you set **Pre-Deploy Command** to `python db_create.py --init`, Render runs it before each deploy and creates tables if they don't exist (no drop, safe for production).
 
-**Option A – Run locally once with production DB**
+**Optional – Run locally once with production DB** (only if you did not use Pre-Deploy)
 
 1. In Render: PostgreSQL → **Info** → copy **External Database URL** (if you need to connect from your PC).
 2. On your PC, in the project folder, create or edit `backend/.env` and set:

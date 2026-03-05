@@ -61,5 +61,18 @@ def db_drop_everything(app, db):
         print("Tables dropped and recreated.")
 
 
+def db_init_only(app, db):
+    """Create database if needed and create tables if they do not exist. Safe for deploy (no drop)."""
+    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    ensure_database_exists(uri)
+    with app.app_context():
+        db.create_all()
+        print("Tables ensured (create_all).")
+
+
 if __name__ == "__main__":
-    db_drop_everything(app, db)
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "--init":
+        db_init_only(app, db)
+    else:
+        db_drop_everything(app, db)
