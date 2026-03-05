@@ -1,0 +1,102 @@
+ENGLISH - READ LEFT TO RIGHT
+===========================
+
+DEPLOY BACKEND TO RENDER - STEP BY STEP
+=======================================
+
+Public Git repository (copy this value when Render asks):
+https://github.com/yyyasmin/NDFA-MEMORY-MATCH-GAME
+
+Note: Do NOT use a .venv in Build/Start - Render excludes .venv from deploy.
+Use: Build = pip install -r requirements.txt, Start = gunicorn ...
+
+1. OPEN RENDER
+   Go to: https://render.com
+   Sign up or log in.
+
+
+2. CREATE A PROJECT (optional but recommended)
+   Click: New +  -->  Project
+   Name: NDFA-Memory-Game (or any name)
+   Click: Create Project
+   You will add the database and web service to this project.
+
+
+3. CREATE DATABASE
+   Click: New +  -->  PostgreSQL
+
+   Name or Database field: use only a-z, 0-9, underscore. No hyphens.
+   Example: ndfa_memory_db   (not ndfa-memory-db)
+   Plan: Free
+   Click: Create Database
+
+   Wait until status is "Available".
+   Open the database.
+   Copy "Internal Database URL" (starts with postgresql://).
+   Save it. You need it in step 5.
+
+
+4. CREATE WEB SERVICE
+   Click: New +  -->  Web Service
+
+   Connect: GitHub  -->  choose repo: yyyasmin/NDFA-MEMORY-MATCH-GAME
+   (Or paste Public Git repository: https://github.com/yyyasmin/NDFA-MEMORY-MATCH-GAME)
+
+   Fill in:
+   Name: ndfa_memory_backend
+   Root Directory: backend
+   Runtime: Python 3
+
+   Build Command:
+   pip install -r requirements.txt
+
+   Start Command:
+   gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app
+
+   Plan: Free
+
+
+5. ADD ENVIRONMENT VARIABLE
+   In the same Web Service form, find "Environment Variables".
+   Click: Add Environment Variable
+
+   Key: DATABASE_URL
+   Value: paste the Internal Database URL you copied in step 3
+
+
+6. DEPLOY
+   Click: Create Web Service
+
+   Wait until the log says "Your service is live".
+   Note your URL, e.g. https://ndfa-memory-backend-xxxx.onrender.com
+
+
+7. TEST
+   Open in browser:
+   https://YOUR-SERVICE-NAME.onrender.com/api/health
+
+   You should see: {"status":"ok"}
+
+
+8. CREATE TABLES (ONE TIME)
+   On your PC, open the backend folder.
+   Create or edit file: .env
+   Put one line (use External Database URL from Render DB page if needed):
+   DATABASE_URL=postgresql://...
+
+   In terminal:
+   cd backend
+   python db_create.py
+
+   Done. Tables are created.
+
+
+---
+COMMANDS TO COPY (for step 4)
+-----------------------------
+
+Build Command:
+pip install -r requirements.txt
+
+Start Command:
+gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app

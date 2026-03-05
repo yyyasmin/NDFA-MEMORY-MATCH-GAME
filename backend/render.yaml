@@ -4,8 +4,8 @@ services:
     name: ndfa_memory_backend
     runtime: python
     rootDir: backend
-    buildCommand: python -m venv .venv && .venv/bin/pip install -r requirements.txt
-    startCommand: .venv/bin/gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app
     envVars:
       - key: DATABASE_URL
         fromDatabase:
