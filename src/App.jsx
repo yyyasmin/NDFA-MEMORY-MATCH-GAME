@@ -2,12 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { io } from 'socket.io-client'
 import { getRandomActivity, getCardEmoji } from './activities'
 
-// Backend URL: env var, or when on Netlify use Render backend, else same origin.
+// Backend URL: choose via .env.local (local dev) or Netlify env (production).
 const RENDER_BACKEND = 'https://ndfa-memory-match-game.onrender.com'
-const API_BASE = import.meta.env.VITE_BACKEND_URL || (typeof window !== 'undefined' && window.location.hostname === 'ndfa-memory-match-game.netlify.app' ? RENDER_BACKEND : '') || ''
-const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || (typeof window !== 'undefined' && window.location.hostname === 'ndfa-memory-match-game.netlify.app' ? RENDER_BACKEND : '') || ''
-// Display: which backend the frontend is using (so you can tell local vs production).
-const BACKEND_DISPLAY = SOCKET_URL || (typeof window !== 'undefined' ? window.location.origin : '')
+const LOCAL_BACKEND = 'http://localhost:5000'
+function getBackendUrl() {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL
+  if (typeof window !== 'undefined' && window.location.hostname === 'ndfa-memory-match-game.netlify.app') return RENDER_BACKEND
+  if (import.meta.env.VITE_USE_RENDER_BACKEND === 'true' || import.meta.env.VITE_USE_RENDER_BACKEND === '1') return RENDER_BACKEND
+  return LOCAL_BACKEND
+}
+const API_BASE = getBackendUrl()
+const SOCKET_URL = getBackendUrl()
+const BACKEND_DISPLAY = API_BASE
 
 function App() {
   const [screen, setScreen] = useState('login')
@@ -25,10 +31,25 @@ function App() {
   const [maxPlayers, setMaxPlayers] = useState(2)
   const [joinRoomCode, setJoinRoomCode] = useState('')
 
-  const connectSocket = useCallback(() => {
-    const s = io(SOCKET_URL || window.location.origin, { path: '/socket.io', transports: ['websocket', 'polling'] })
+  const connectSocket = useCallback((loginEmail, loginNickname) => {
+    const em = (loginEmail != null ? loginEmail : email).toString().trim()
+    const nick = (loginNickname != null ? loginNickname : nickname).toString().trim()
+    // Use polling only for Render (avoids WebSocket "closed before established" on free tier).
+    const isRender = SOCKET_URL && SOCKET_URL.includes('onrender.com')
+    const s = io(SOCKET_URL || window.location.origin, {
+      path: '/socket.io',
+      transports: isRender ? ['polling'] : ['polling', 'websocket']
+    })
     s.on('connect', () => {
-      s.emit('register', { email: email.trim(), nickname: nickname.trim() })
+      setError('')
+      s.emit('register', { email: em, nickname: nick })
+    })
+    s.on('connect_error', () => {
+      setError('לא ניתן להתחבר לשרת. אם השרת ב-Render (חינם), ייתכן שהוא ישן – נסה שוב אחרי כמה שניות.')
+    })
+    s.on('disconnect', (reason) => {
+      if (reason === 'io server disconnect' || reason === 'io client disconnect') return
+      setError('התנתקת מהשרת. נסה להתחבר שוב.')
     })
     s.on('registered', () => setScreen('lobby'))
     s.on('error', (data) => setError(data?.message || 'שגיאה'))
@@ -90,7 +111,7 @@ function App() {
     }
     setEmail(em)
     setNickname(nick)
-    connectSocket()
+    connectSocket(em, nick)
   }
 
   const handleCreateRoom = () => {
