@@ -1,0 +1,20 @@
+# Optional: Blueprint for Render. You can also create the service manually in the dashboard.
+services:
+  - type: web
+    name: ndfa_memory_backend
+    runtime: python
+    rootDir: backend
+    buildCommand: python -m venv .venv && .venv/bin/pip install -r requirements.txt
+    startCommand: .venv/bin/gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ndfa_memory_db
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: 3.12.0
+
+databases:
+  - name: ndfa_memory_db
+    databaseName: ndfa_memory_game
+    plan: free

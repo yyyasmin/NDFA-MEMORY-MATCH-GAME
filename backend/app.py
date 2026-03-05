@@ -10,7 +10,7 @@ from models import db, Player, Room, RoomPlayer
 
 app = Flask(__name__)
 app.config.from_object(Config)
-CORS(app, origins=os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(','))
+CORS(app, origins=os.environ.get('CORS_ORIGINS', '*').split(','))
 db.init_app(app)
 socketio = SocketIO(app, cors_allowed_origins='*')
 
