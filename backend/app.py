@@ -10,9 +10,15 @@ from models import db, Player, Room, RoomPlayer
 
 app = Flask(__name__)
 app.config.from_object(Config)
-CORS(app, origins=os.environ.get('CORS_ORIGINS', '*').split(','))
+# CORS: allow Netlify frontend explicitly so cross-origin from Netlify is never blocked.
+_cors_origins = os.environ.get('CORS_ORIGINS', '').strip() or '*'
+_origins_list = [o.strip() for o in _cors_origins.split(',') if o.strip()] if _cors_origins != '*' else ['*']
+if '*' not in _origins_list:
+    _origins_list.append('https://ndfa-memory-match-game.netlify.app')
+CORS(app, origins=_origins_list)
 db.init_app(app)
-socketio = SocketIO(app, cors_allowed_origins='*')
+_socket_cors = _origins_list if _origins_list != ['*'] else '*'
+socketio = SocketIO(app, cors_allowed_origins=_socket_cors)
 
 ROOMS_IN_MEMORY = {}
 SOCKET_PLAYER = {}

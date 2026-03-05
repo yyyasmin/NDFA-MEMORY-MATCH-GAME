@@ -5,8 +5,16 @@ import { getRandomActivity, getCardEmoji } from './activities'
 // Backend URL: choose via .env.local (local dev) or Netlify env (production).
 const RENDER_BACKEND = 'https://ndfa-memory-match-game.onrender.com'
 const LOCAL_BACKEND = 'http://localhost:5000'
+function isValidHttpUrl(s) {
+  if (!s || typeof s !== 'string') return false
+  const t = s.trim()
+  if (!t.startsWith('http://') && !t.startsWith('https://')) return false
+  if (/\[Window|Cursor|\[Open\]|\[Copy\]|\[Cancel\]/i.test(t)) return false
+  return true
+}
 function getBackendUrl() {
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL
+  const fromEnv = import.meta.env.VITE_BACKEND_URL
+  if (isValidHttpUrl(fromEnv)) return fromEnv.trim()
   if (typeof window !== 'undefined' && window.location.hostname === 'ndfa-memory-match-game.netlify.app') return RENDER_BACKEND
   if (import.meta.env.VITE_USE_RENDER_BACKEND === 'true' || import.meta.env.VITE_USE_RENDER_BACKEND === '1') return RENDER_BACKEND
   return LOCAL_BACKEND
@@ -137,13 +145,13 @@ function App() {
     setEmail(em)
     setNickname(nick)
 
-    // If backend is Render (free tier), wake it first so the socket can connect.
-    if (SOCKET_URL && SOCKET_URL.includes('onrender.com')) {
+    // If backend is Render (free tier), wake it first. Always use constant URL so env never overrides to garbage.
+    if (typeof window !== 'undefined' && window.location.hostname === 'ndfa-memory-match-game.netlify.app') {
       setError('מעיר את השרת...')
       try {
         const ctrl = new AbortController()
         const t = setTimeout(() => ctrl.abort(), 60000)
-        await fetch(`${SOCKET_URL}/api/health`, { signal: ctrl.signal })
+        await fetch(`${RENDER_BACKEND}/api/health`, { signal: ctrl.signal })
         clearTimeout(t)
       } catch (_) {
         // Timeout or network error – continue anyway, retries will run
