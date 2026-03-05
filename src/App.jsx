@@ -1,0 +1,232 @@
+import React, { useState, useEffect, useCallback } from 'react'
+import { io } from 'socket.io-client'
+import { getRandomActivity, getCardEmoji } from './activities'
+
+const API_BASE = ''
+const SOCKET_URL = ''
+
+function App() {
+  const [screen, setScreen] = useState('login')
+  const [email, setEmail] = useState('')
+  const [nickname, setNickname] = useState('')
+  const [socket, setSocket] = useState(null)
+  const [error, setError] = useState('')
+  const [roomsList, setRoomsList] = useState([])
+  const [roomId, setRoomId] = useState('')
+  const [room, setRoom] = useState(null)
+  const [deck, setDeck] = useState([])
+  const [flipped, setFlipped] = useState([])
+  const [matched, setMatched] = useState([])
+  const [activityModal, setActivityModal] = useState(null)
+  const [maxPlayers, setMaxPlayers] = useState(2)
+  const [joinRoomCode, setJoinRoomCode] = useState('')
+
+  const connectSocket = useCallback(() => {
+    const s = io(SOCKET_URL || window.location.origin, { path: '/socket.io', transports: ['websocket', 'polling'] })
+    s.on('connect', () => {
+      s.emit('register', { email: email.trim(), nickname: nickname.trim() })
+    })
+    s.on('registered', () => setScreen('lobby'))
+    s.on('error', (data) => setError(data?.message || 'שגיאה'))
+    s.on('roomCreated', (data) => {
+      setRoomId(data.roomId)
+      setRoom(data.room)
+      setScreen('room')
+      setError('')
+    })
+    s.on('joinedRoom', (data) => {
+      setRoomId(data.roomId)
+      setRoom(data.room)
+      setScreen('room')
+      setError('')
+    })
+    s.on('roomUpdate', (data) => setRoom(data))
+    s.on('roomsList', (data) => setRoomsList(data || []))
+    s.on('gameStarted', (data) => {
+      setRoom(data.room)
+      setDeck(data.deck || [])
+      setFlipped([])
+      setMatched([])
+      setScreen('game')
+      setError('')
+    })
+    s.on('cardFlipped', (data) => setFlipped(data.flipped || []))
+    s.on('match', (data) => {
+      setMatched((m) => [...m, ...(data.cardIndices || [])])
+      setFlipped([])
+      if (data.room) setRoom(data.room)
+      const act = getRandomActivity(data.category)
+      setActivityModal({ ...act, category: data.category })
+    })
+    s.on('noMatch', (data) => {
+      setFlipped([])
+      if (data.room) setRoom(data.room)
+    })
+    s.on('activityClosed', () => setActivityModal(null))
+    setSocket(s)
+    return () => s.disconnect()
+  }, [email, nickname])
+
+  useEffect(() => {
+    if (screen === 'lobby' && socket) socket.emit('listRooms')
+    const id = setInterval(() => {
+      if (screen === 'lobby' && socket) socket.emit('listRooms')
+    }, 3000)
+    return () => clearInterval(id)
+  }, [screen, socket])
+
+  const handleLogin = (e) => {
+    e.preventDefault()
+    setError('')
+    const em = email.trim()
+    const nick = nickname.trim()
+    if (!em || !nick) {
+      setError('אימייל ושם חובה')
+      return
+    }
+    setEmail(em)
+    setNickname(nick)
+    connectSocket()
+  }
+
+  const handleCreateRoom = () => {
+    setError('')
+    if (!socket) return
+    socket.emit('createRoom', { maxPlayers: maxPlayers, email, nickname })
+  }
+
+  const handleJoinRoom = (code) => {
+    setError('')
+    if (!socket || !code) return
+    socket.emit('joinRoom', { roomId: code.trim().toUpperCase(), email, nickname })
+  }
+
+  const handleStartGame = () => {
+    if (!socket) return
+    socket.emit('startGame', { roomId })
+  }
+
+  const handleFlip = (cardIndex) => {
+    if (!socket || !room || room.status !== 'playing') return
+    if (flipped.length >= 2 || flipped.includes(cardIndex) || matched.includes(cardIndex)) return
+    const currentId = room.players[room.currentTurnIndex]?.id
+    if (socket.id !== currentId) return
+    socket.emit('flipCard', { roomId, cardIndex })
+  }
+
+  const closeActivity = () => {
+    if (socket) socket.emit('activityDone', { roomId })
+    setActivityModal(null)
+  }
+
+  const currentTurnId = room?.players?.[room?.currentTurnIndex]?.id
+  const isMyTurn = socket && currentTurnId === socket.id
+
+  return (
+    <div className="app">
+      <h1>משחק זיכרון NDFA</h1>
+
+      {screen === 'login' && (
+        <form onSubmit={handleLogin}>
+          <div className="form-row">
+            <label>אימייל</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" />
+          </div>
+          <div className="form-row">
+            <label>שם במשחק</label>
+            <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="השם שלי" />
+          </div>
+          {error && <p className="error-msg">{error}</p>}
+          <button type="submit">התחבר והמשך</button>
+        </form>
+      )}
+
+      {screen === 'lobby' && (
+        <>
+          <p>שלום, {nickname}. בחר ליצור חדר או להצטרף לחדר קיים.</p>
+          <div className="lobby-actions">
+            <label>מספר שחקנים: </label>
+            <select value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))}>
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+            </select>
+            <button onClick={handleCreateRoom}>צור חדר חדש</button>
+          </div>
+          <h3>חדרים פתוחים</h3>
+          <ul className="room-list">
+            {roomsList.length === 0 && <li>אין חדרים פתוחים. צור חדר חדש.</li>}
+            {roomsList.map((r) => (
+              <li key={r.roomId || r.code}>
+                <span>חדר {r.roomId || r.code} – {r.players?.map((p) => p.nickname).join(', ')} ({r.players?.length}/{r.maxPlayers})</span>
+                <button className="join-btn" onClick={() => handleJoinRoom(r.roomId || r.code)}>הצטרף</button>
+              </li>
+            ))}
+          </ul>
+          <div className="form-row">
+            <label>הזן קוד חדר להצטרפות</label>
+            <input value={joinRoomCode} onChange={(e) => setJoinRoomCode(e.target.value)} placeholder="קוד חדר" />
+            <button onClick={() => handleJoinRoom(joinRoomCode)}>הצטרף לחדר</button>
+          </div>
+          {error && <p className="error-msg">{error}</p>}
+        </>
+      )}
+
+      {screen === 'room' && room && (
+        <>
+          <p className="room-code">קוד החדר: <strong>{roomId}</strong></p>
+          <p>שחקנים בחדר: {room.players?.map((p) => p.nickname).join(', ')} ({room.players?.length}/{room.maxPlayers})</p>
+          {room.players?.[0]?.id === socket?.id && room.players?.length === room.maxPlayers && (
+            <button onClick={handleStartGame}>התחל משחק</button>
+          )}
+          {room.players?.[0]?.id === socket?.id && room.players?.length < room.maxPlayers && (
+            <p>מחכים לעוד {room.maxPlayers - room.players?.length} שחקן/ים להצטרף לפני שמתחילים.</p>
+          )}
+          {room.players?.[0]?.id !== socket?.id && <p>מחכים לבעל החדר שיתחיל...</p>}
+          {error && <p className="error-msg">{error}</p>}
+        </>
+      )}
+
+      {screen === 'game' && room && (
+        <>
+          <p className="player-identity">אתה משחק כ: <strong>{nickname}</strong></p>
+          <div className="scores">
+            {room.players?.map((p) => (
+              <span key={p.id} className={p.id === socket?.id ? 'score-you' : ''}>
+                {p.nickname}: {room.scores?.[p.id] ?? 0}
+                {p.id === currentTurnId && ' ← תור'}
+              </span>
+            ))}
+          </div>
+          <p className="turn-indicator">{isMyTurn ? 'עכשיו תורך!' : 'תור של שחקן אחר'}</p>
+          <div className="game-board">
+            {deck.map((card, i) => (
+              <div
+                key={i}
+                className={`card ${flipped.includes(i) || matched.includes(i) ? 'flipped' : ''} ${matched.includes(i) ? 'matched' : ''}`}
+                onClick={() => handleFlip(i)}
+              >
+                <div className="card-inner">
+                  <div className="card-face card-back">?</div>
+                  <div className="card-face card-front">{getCardEmoji(card.category)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activityModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>{activityModal.emoji} {activityModal.title}</h2>
+            <p className="activity-text">{activityModal.text}</p>
+            <button className="done-btn" onClick={closeActivity}>סיימתי את הפעילות</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default App
